@@ -237,7 +237,10 @@ class SeriesSeasonStripState extends State<SeriesSeasonStrip> {
                   label:
                       '${entry.drama.title}，${entry.label}，${entry.drama.episodes > 0 ? '共 ${entry.drama.episodes} 集' : '集数待更新'}${selected ? '，当前选择' : ''}',
                   radius: 12,
-                  padding: const EdgeInsets.all(6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 3,
+                  ),
                   borderWidth: television ? 3 : 2,
                   onPressed: () => widget.onSelected(entry.drama),
                   child: Column(
