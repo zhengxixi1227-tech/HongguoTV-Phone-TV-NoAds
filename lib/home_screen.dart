@@ -1219,6 +1219,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ],
+              if (television) const _TopBarClock(),
               const SizedBox(width: 8),
             ],
           ),
@@ -1743,6 +1744,51 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.fromLTRB(18, 2, 18, 18),
       itemBuilder: (_, index, node, onFocus) =>
           _catalogTile(items[index], focusNode: node, onFocus: onFocus),
+    );
+  }
+}
+
+class _TopBarClock extends StatefulWidget {
+  const _TopBarClock();
+
+  @override
+  State<_TopBarClock> createState() => _TopBarClockState();
+}
+
+class _TopBarClockState extends State<_TopBarClock> {
+  Timer? _timer;
+  DateTime _now = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 20), (_) {
+      if (mounted) setState(() => _now = DateTime.now());
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text =
+        '${_now.hour.toString().padLeft(2, '0')}:${_now.minute.toString().padLeft(2, '0')}';
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Center(
+        child: Text(
+          text,
+          style: TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.w700,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+      ),
     );
   }
 }

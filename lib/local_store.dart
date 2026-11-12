@@ -476,7 +476,7 @@ class LocalStore extends ChangeNotifier {
 
   String get themeMode {
     final value = _configurationError == null ? _string('themeMode') : null;
-    return {'light', 'dark', 'system'}.contains(value) ? value! : 'system';
+    return {'light', 'dark', 'system'}.contains(value) ? value! : 'dark';
   }
 
   bool get autoExport => !locked && (_bool('autoExport') ?? false);

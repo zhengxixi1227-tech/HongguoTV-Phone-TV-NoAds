@@ -158,19 +158,28 @@ class _RemoteTargetState extends State<RemoteTarget> {
                     : _focused && widget.outlined
                     ? Theme.of(context).colorScheme.surfaceContainerHighest
                     : _focused
-                    ? Theme.of(context).colorScheme.primaryContainer
+                    ? const Color(0xFF2EFF6A).withOpacity(0.22)
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(widget.radius),
                 border: Border.all(
                   color: _focused
-                      ? Theme.of(context).colorScheme.primary
+                      ? const Color(0xFF2EFF6A)
                       : widget.selected
                       ? Theme.of(context).colorScheme.primary
                       : widget.outlined
                       ? Theme.of(context).colorScheme.outlineVariant
                       : Colors.transparent,
-                  width: widget.borderWidth,
+                  width: _focused ? 5 : widget.borderWidth,
                 ),
+                boxShadow: _focused
+                    ? const [
+                        BoxShadow(
+                          color: Color(0x8C2EFF6A),
+                          blurRadius: 18,
+                          spreadRadius: 2,
+                        ),
+                      ]
+                    : null,
               ),
               child: ExcludeFocus(child: widget.child),
             ),
