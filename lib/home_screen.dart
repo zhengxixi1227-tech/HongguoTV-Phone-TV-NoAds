@@ -1,5 +1,4 @@
 import 'app_update_screen.dart';
-import 'app_origin.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -1172,8 +1171,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         children: [
                           const Text('独立运行，打开即可浏览和播放。观看记录与追剧收藏保存在当前设备。'),
-                          const SizedBox(height: 16),
-                          const ProjectOrigin(),
                           TextButton.icon(
                             onPressed: () {
                               Navigator.of(context, rootNavigator: true).pop();

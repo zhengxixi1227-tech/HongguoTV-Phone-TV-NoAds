@@ -416,7 +416,7 @@ class _AppBootstrapState extends State<AppBootstrap>
           television: device.television,
           version: device.version,
           navigatorKey: navigator,
-          requireOriginNotice: true,
+          requireOriginNotice: false,
         );
 }
 
