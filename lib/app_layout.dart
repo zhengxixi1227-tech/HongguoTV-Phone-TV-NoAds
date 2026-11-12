@@ -6,19 +6,21 @@ import 'package:flutter/services.dart';
 
 export 'app_build.dart';
 
-const appVersion = '0.1.34';
-const windowsBuildNumber = 59;
+const appVersion = '0.1.52';
+const windowsBuildNumber = 88;
+
+const _tvFocusGreen = Color(0xFF2EFF6A);
 
 ThemeData televisionTheme(ThemeData theme) {
-  final colors = theme.colorScheme;
   final focusSide = WidgetStateProperty.resolveWith<BorderSide?>(
     (states) => states.contains(WidgetState.focused)
-        ? BorderSide(color: colors.primary, width: 3)
+        ? const BorderSide(color: _tvFocusGreen, width: 5)
         : null,
   );
   final focusBackground = WidgetStateProperty.resolveWith<Color?>(
-    (states) =>
-        states.contains(WidgetState.focused) ? colors.primaryContainer : null,
+    (states) => states.contains(WidgetState.focused)
+        ? _tvFocusGreen.withOpacity(0.22)
+        : null,
   );
   final button = ButtonStyle(
     side: focusSide,
@@ -26,7 +28,7 @@ ThemeData televisionTheme(ThemeData theme) {
     textStyle: const WidgetStatePropertyAll(TextStyle(fontSize: 17)),
   );
   return theme.copyWith(
-    focusColor: colors.primaryContainer,
+    focusColor: _tvFocusGreen.withOpacity(0.25),
     iconButtonTheme: IconButtonThemeData(
       style: button.copyWith(backgroundColor: focusBackground),
     ),
@@ -38,7 +40,7 @@ ThemeData televisionTheme(ThemeData theme) {
     inputDecorationTheme: theme.inputDecorationTheme.copyWith(
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: colors.primary, width: 3),
+        borderSide: const BorderSide(color: _tvFocusGreen, width: 5),
       ),
     ),
   );

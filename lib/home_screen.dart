@@ -62,6 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
   int _followVisit = 0;
   String _submittedQuery = '';
+  String _filterQuery = '';
   final _categorySelections = <String, String>{};
   late final CatalogBrowser _browser;
   bool _searchVisible = false;
@@ -296,7 +297,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _showRecommendations = false;
         _selectionMode = false;
         _selectedDramas.clear();
-        _search.clear();
+        _clearSearch();
         _submittedQuery = '';
         _searchVisible = false;
       });
@@ -310,7 +311,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _showRecommendations = true;
         _selectionMode = false;
         _selectedDramas.clear();
-        _search.clear();
+        _clearSearch();
         _searchVisible = false;
         _submittedQuery = '';
       });
@@ -325,7 +326,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _selectedDramas.clear();
       _categorySelections[_group.id] = category;
       if (_onlineSearch) {
-        _search.clear();
+        _clearSearch();
         _submittedQuery = '';
       }
       _items = [];
@@ -358,7 +359,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final hadQuery = _search.text.isNotEmpty;
     setState(() {
       _searchVisible = !_searchVisible;
-      if (!_searchVisible) _search.clear();
+      if (!_searchVisible) _clearSearch();
     });
     if (!_searchVisible && hadQuery) _searchChanged('');
   }
@@ -459,7 +460,7 @@ class _HomeScreenState extends State<HomeScreen> {
     } else if (_tab != 0) {
       setState(() => _tab = 0);
     } else if (_search.text.isNotEmpty) {
-      _search.clear();
+      setState(_clearSearch);
       _searchChanged('');
     } else if (AppLayout.isTelevision(context)) {
       unawaited(_confirmExit());
@@ -561,7 +562,15 @@ class _HomeScreenState extends State<HomeScreen> {
     bool startup = false,
   }) async {
     if (_specialFeed) return;
-    if (more && (_loading || _loadingMore || !_hasMore)) return;
+    if (more &&
+        (_loading ||
+            _loadingMore ||
+            !_hasMore ||
+            _onlineSearch &&
+                (!_search.value.composing.isCollapsed ||
+                    _search.text.trim() != _submittedQuery))) {
+      return;
+    }
     _initialRetryTimer?.cancel();
     if (!startup) _initialRetries = 0;
     final generation = ++_generation;
@@ -650,7 +659,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
     _debounce?.cancel();
-    _search.clear();
+    _clearSearch();
     setState(() {
       _rankingBoard = null;
       _showRecommendations = false;
@@ -676,18 +685,45 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadCategories();
   }
 
+  void _clearSearch() {
+    _search.clear();
+    _filterQuery = '';
+  }
+
   void _searchChanged(String query) {
     _debounce?.cancel();
+    final selectionChanged = _selectionMode || _selectedDramas.isNotEmpty;
     _selectionMode = false;
     _selectedDramas.clear();
-    if (_onlineSearch && (_loading || _loadingMore)) {
+    final cancelling = _onlineSearch && (_loading || _loadingMore);
+    if (cancelling) {
       _generation++;
-      unawaited(_browser.cancel());
+      unawaited(_browser.cancel().catchError((Object _) {}));
       _loading = _loadingMore = false;
     }
-    setState(() {});
-    if (_onlineSearch && query.trim().isEmpty) {
-      _debounce = Timer(const Duration(milliseconds: 300), () => _load());
+    if (selectionChanged || cancelling) setState(() {});
+    if (!_search.value.composing.isCollapsed) return;
+    if (_onlineSearch) {
+      if (query.trim().isEmpty) {
+        _debounce = Timer(const Duration(milliseconds: 300), () {
+          if (mounted && _tab == 0) _load();
+        });
+      }
+      return;
+    }
+    final filter = query.trim().toLowerCase();
+    if (filter == _filterQuery) return;
+    if (filter.isEmpty) {
+      setState(() => _filterQuery = '');
+    } else {
+      _debounce = Timer(const Duration(milliseconds: 180), () {
+        if (mounted &&
+            _tab == 0 &&
+            _search.value.composing.isCollapsed &&
+            _search.text.trim().toLowerCase() == filter) {
+          setState(() => _filterQuery = filter);
+        }
+      });
     }
   }
 
@@ -700,6 +736,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _selectionMode = false;
     _selectedDramas.clear();
     _search.text = query.trim();
+    _filterQuery = _search.text.toLowerCase();
     _debounce?.cancel();
     if (_search.text.isNotEmpty) {
       unawaited(
@@ -851,6 +888,8 @@ class _HomeScreenState extends State<HomeScreen> {
     VoidCallback? onFocus,
   }) {
     final following = widget.store.followedSeries(drama);
+    final hasNextSeason =
+        following != null && widget.store.hasNextSeason(drama);
     final canSelect =
         widget.store.canDownload && widget.repository.supportsDownloads;
     return DramaTile(
@@ -867,7 +906,11 @@ class _HomeScreenState extends State<HomeScreen> {
         onPressed: () => _dramaActions(drama),
       ),
       selected: _selectionMode ? _selectedDramas.containsKey(drama.id) : null,
-      badge: following == null ? null : '已追剧',
+      badge: hasNextSeason
+          ? '已有下季'
+          : following == null
+          ? null
+          : '已追剧',
     );
   }
 
@@ -887,7 +930,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool get _hideVip => _supportsVipFilter && widget.store.hideVip;
 
   List<Drama> get _visible {
-    final query = _search.text.trim().toLowerCase();
+    final query = _filterQuery;
     return sortCatalog(
       _items.where((drama) {
         if (!widget.store.allowsSource(drama.source)) return false;
@@ -1176,6 +1219,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ],
+              if (television) const _TopBarClock(),
               const SizedBox(width: 8),
             ],
           ),
@@ -1185,7 +1229,8 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 if (television) ...[
                   SizedBox(
-                    width: 164,
+                    width: (MediaQuery.textScalerOf(context).scale(17) * 4 + 92)
+                        .clamp(164.0, double.infinity),
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(8, 24, 8, 12),
                       child: Column(
@@ -1361,42 +1406,52 @@ class _HomeScreenState extends State<HomeScreen> {
               onSearch: _submitSearch,
             ),
           ),
-        if (_searchVisible &&
-            _search.text.trim().isEmpty &&
-            widget.store.recentSearches.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
+        if (_searchVisible)
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _search,
+            builder: (context, value, _) =>
+                value.text.trim().isEmpty &&
+                    widget.store.recentSearches.isNotEmpty
+                ? Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                     child: Row(
                       children: [
-                        for (final query in widget.store.recentSearches)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: ActionChip(
-                              avatar: const Icon(
-                                Icons.history_rounded,
-                                size: 16,
-                              ),
-                              label: Text(query),
-                              onPressed: () => _submitSearch(query),
+                        Expanded(
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                for (final query in widget.store.recentSearches)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: ActionChip(
+                                      avatar: const Icon(
+                                        Icons.history_rounded,
+                                        size: 16,
+                                      ),
+                                      label: Text(query),
+                                      onPressed: () => _submitSearch(query),
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
+                        ),
+                        IconButton(
+                          tooltip: '清空最近搜索',
+                          onPressed: () => saveUserChange(
+                            context,
+                            widget.store.clearRecentSearches,
+                          ),
+                          icon: const Icon(
+                            Icons.delete_outline_rounded,
+                            size: 20,
+                          ),
+                        ),
                       ],
                     ),
-                  ),
-                ),
-                IconButton(
-                  tooltip: '清空最近搜索',
-                  onPressed: () =>
-                      saveUserChange(context, widget.store.clearRecentSearches),
-                  icon: const Icon(Icons.delete_outline_rounded, size: 20),
-                ),
-              ],
-            ),
+                  )
+                : const SizedBox.shrink(),
           ),
         CatalogFilters(
           key: ValueKey('filters-${_group.id}'),
@@ -1689,6 +1744,51 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.fromLTRB(18, 2, 18, 18),
       itemBuilder: (_, index, node, onFocus) =>
           _catalogTile(items[index], focusNode: node, onFocus: onFocus),
+    );
+  }
+}
+
+class _TopBarClock extends StatefulWidget {
+  const _TopBarClock();
+
+  @override
+  State<_TopBarClock> createState() => _TopBarClockState();
+}
+
+class _TopBarClockState extends State<_TopBarClock> {
+  Timer? _timer;
+  DateTime _now = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 20), (_) {
+      if (mounted) setState(() => _now = DateTime.now());
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text =
+        '${_now.hour.toString().padLeft(2, '0')}:${_now.minute.toString().padLeft(2, '0')}';
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Center(
+        child: Text(
+          text,
+          style: TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.w700,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+      ),
     );
   }
 }
