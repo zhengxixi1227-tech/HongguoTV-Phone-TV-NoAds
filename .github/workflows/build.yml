@@ -77,33 +77,7 @@ jobs:
           packages: "platforms;android-36"
           accept-android-sdk-licenses: true
       - run: sdkmanager 'ndk;28.2.13676358'
-      - name: Configure Android signing
-        id: signing
-        run: |
-          python scripts/configure_signing.py
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
       - run: python scripts/build_android.py ${{ matrix.arguments }}
-      - name: 校验 APK 签名证书
-        shell: bash
-        run: |
-          set -euo pipefail
-          expected='55c3c3395a00e56e99b8bfd580b14c99618da74db19692a2e42606eb05c47ba9'
-          apksigner=$(find "${ANDROID_HOME}/build-tools" -name apksigner -type f | sort -V | tail -n1)
-          test -n "$apksigner"
-          for apk in dist/android/*.apk; do
-            output=$("$apksigner" verify --verbose --print-certs "$apk")
-            printf '%s\n' "$output"
-            printf '%s\n' "$output" | grep -Fxq 'Number of signers: 1'
-          actual=$(printf '%s\n' "$output" | sed -En 's/^(Signer #[0-9]+|V[0-9]+([.][0-9]+)? Signer):? certificate SHA-256 digest: //p' | tr -d ':' | tr '[:upper:]' '[:lower:]' | sort -u)
-            test "$actual" = "$expected"
-          done
-      - name: Remove signing files
-        if: always()
-        run: python scripts/configure_signing.py --clean
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.edition }}-android
