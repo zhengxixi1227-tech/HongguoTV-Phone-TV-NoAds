@@ -42,7 +42,7 @@ void main() {
     'theme survives restart and backup, with compatible old backups',
     () async {
       final store = await localStore();
-      expect(store.themeMode, 'system');
+      expect(store.themeMode, 'dark');
       await store.setThemeMode('light');
       final restored = LocalStore(store.preferences);
       expect(restored.themeMode, 'light');
@@ -67,7 +67,7 @@ void main() {
   );
 
   testWidgets(
-    'default theme follows the system from bootstrap through browsing',
+    'default theme is dark; system theme follows the platform from bootstrap through browsing',
     (tester) async {
       phone(tester);
       addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
@@ -77,10 +77,12 @@ void main() {
       await tester.pump();
       expect(
         tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
-        ThemeMode.system,
+        ThemeMode.dark,
       );
       final store = await localStore();
       await tester.pumpWidget(DuanjuApp(repository: repository, store: store));
+      await tester.pumpAndSettle();
+      await store.setThemeMode('system');
       await tester.pumpAndSettle();
       for (final brightness in [Brightness.dark, Brightness.light]) {
         tester.platformDispatcher.platformBrightnessTestValue = brightness;
